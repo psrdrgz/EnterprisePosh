@@ -2,4 +2,87 @@
 
 Debugging VS Interactive
 * Shows you the status of variables
+* Stop at the point(s) you want
 * Lets you dive into a module context
+
+#!pwsh
+
+$Loops = 10
+$BreakPoint = 3
+ 
+#wait-Debugger
+:LoopName For ($Counter = 0; $Counter -LT $loops; $Counter++){
+    If ($Counter = $BreakPoint){
+        Break LoopName
+    }
+    "Sleeping $Counter"
+    Start-Sleep -Seconds 1
+}
+
+#!markdown
+
+# Remote Debugging
+1) Useful when for troulbeshooting scripts running non-interactively.
+1) Able to gather information about the runspace environment.
+
+#!pwsh
+
+# Gathering Data From 
+Set-Location E:\Repos\MMS\EnterprisePosh\Debug
+$FilePath = "E:\RunSpaceData.txt"
+Import-Module .\Module.psm1
+
+$RunSpaceData = @{
+    Computername = $ENV:COMPUTERNAME
+    PID = $PID
+    RunSpace = $Host.Runspace.ID
+}
+Out-File -FilePath $FilePath -InputObject (Convertto-json $RunSpaceData)
+
+#Wait
+# Wait-Debugger for local
+$Seconds = 300
+For ($Counter = 0; $Counter -lt $Seconds; $Counter++){
+    Start-UDFSleep 
+}
+
+#!markdown
+
+# Notes
+1) You have to be an admin or the same user to enter the HostProcess 
+1) holds the remote runspace up until you detach
+1) Errors Easily
+1) Integrated consoles are your friend
+
+#!pwsh
+
+# Entering The Runspace
+$FilePath = "E:\RunSpaceData.txt"
+$Content = Get-Content -Path $FilePath -Raw
+$RunSpaceData = ConvertFrom-Json -InputObject $content
+
+If ($RunSpaceData.ComputerName -NE $ENV:COMPUTERNAME){
+    $PSSession = Enter-PSSession -ComputerName $RunSpaceData.ComputerName
+    Invoke-Command -ScriptBlock {Enter-PSHostProcess -ID $args} -ArgumentList $RunSpaceData.PID -Session $PSSession
+    "Debug-Runspace -id $($RunSpaceData.RunSpace)"
+}Else{
+    $RunSpaceData
+    Enter-PSHostProcess -ID $RunSpaceData.PID
+    #get-Runspace
+    #Get-RunspaceDebug
+    Debug-Runspace -ID $RunSpaceData.RunSpace
+}
+
+# ? or h for help
+
+#!markdown
+
+# Concerned?
+1) You need to have admin access
+1) This is hard to automate
+1) Timing is super difficult
+1) You can disable debugging
+
+#!pwsh
+
+$Host.Runspace.Debugger.SetDebugMode([System.Management.Automation.DebugModes]::None)
