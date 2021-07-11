@@ -1,11 +1,17 @@
 #!markdown
 
-Debugging VS Interactive
-* Shows you the status of variables
-* Stop at the point(s) you want
-* Lets you dive into a module context
+# Debugging
+## Debugging VS Interactive
+1) Shows you the status of variables
+1) Stop at the point(s) you want
+1) Lets you dive into a module context
 
 #!pwsh
+
+# Gathering Data From 
+Set-Location E:\Repos\MMS\EnterprisePosh\Debug
+$FilePath = "E:\RunSpaceData.txt"
+Import-Module .\Module.psm1
 
 $Loops = 10
 $BreakPoint = 3
@@ -16,12 +22,12 @@ $BreakPoint = 3
         Break LoopName
     }
     "Sleeping $Counter"
-    Start-Sleep -Seconds 1
+    Start-UDFSleep
 }
 
 #!markdown
 
-# Remote Debugging
+## Remote Debugging
 1) Useful when for troulbeshooting scripts running non-interactively.
 1) Able to gather information about the runspace environment.
 
@@ -48,7 +54,7 @@ For ($Counter = 0; $Counter -lt $Seconds; $Counter++){
 
 #!markdown
 
-# Notes
+## Notes
 1) You have to be an admin or the same user to enter the HostProcess 
 1) holds the remote runspace up until you detach
 1) Errors Easily
@@ -77,7 +83,7 @@ If ($RunSpaceData.ComputerName -NE $ENV:COMPUTERNAME){
 
 #!markdown
 
-# Concerned?
+## Concerned?
 1) You need to have admin access
 1) This is hard to automate
 1) Timing is super difficult
