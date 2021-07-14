@@ -4,6 +4,7 @@
 
 ## Obvious Stuff
 1) Lock down permissions to your solutions
+    1) Having poor permissioning on your scripts can lead to edits and secrets being leaked.
 1) Do not use Invoke-Experssion
     1) Be careful with user input in general
 1) Beware of Over-The-Shoulder Logging
@@ -12,6 +13,8 @@
 
 #!pwsh
 
+$username = 'Administrator'
+$Password = 'P@ssw0rd'
 E:\ITStuff\Utilities\SysInternals\PSExec.exe -u $username -p $Password cmd /k 
 
 
@@ -46,8 +49,14 @@ EventVwr.msc
     1) Separating secrets like usernames from passwords is a good idea. 
 
 ### DPAPI
-    1) Data Protection API is a good solution for some solutions. 
+    1) Data Protection API is a good solution for some solutions based on AES encryption and built into windows. 
+        1) User Keys:  %userprofile%\AppData\Roaming\Microsoft\Protect
+        1) Computer Keys: %windir%\system32\microsoft\protect
     1) DPAPI is easy to use. 
+        1) Browser secrets
+        1) Certificates
+        1) Biometrics data
+        1) Credential Manager
     1) Anyone can decrypt with the user's context
 
 #!pwsh
@@ -77,7 +86,7 @@ $Userinput = 'someParam2Secure'
 $keybytes = [System.Text.Encoding]::UTF8.GetBytes($Userinput)
 [Byte[]] $Key = [System.Security.Cryptography.HashAlgorithm]::Create('SHA256').ComputeHash($keybytes)
 
-$secure = ConvertTo-SecureString -String ‘Password123' -AsPlainText -Force 
+$secure = ConvertTo-SecureString -String 'Password123' -AsPlainText -Force 
 ConvertFrom-SecureString -SecureString $secure -Key $key
 
 #!pwsh
