@@ -1,0 +1,163 @@
+#!markdown
+
+# Performance in PowerShell
+
+## Obvious Stuff
+- Measure-Command is your friend!
+
+## Parallelism
+### ForEach vs ForEach-Object vs ForEach()
+- ForEach > ForEach() > Foreach-Object
+
+#!pwsh
+
+$ForEach = Measure-Command -Expression {
+    ForEach ($i in @(1..1E5)){
+        $i
+    }
+} |
+Select-Object -ExpandProperty TotalMilliseconds
+
+$ForEachCmdlet = Measure-Command -Expression {
+    @(1..1E5) | ForEach-Object -Process {$PSItem}
+} |
+Select-Object -ExpandProperty TotalMilliseconds
+
+$ForEachMethod = Measure-Command -Expression {
+    @(1..1E5).ForEach({$PSItem})
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+Write-Output 'Results in milliseconds'
+
+[pscustomobject]@{
+    ForEach = $ForEach
+    ForEachCmdlet = $ForEachCmdlet
+    ForEachMethod = $ForEachMethod
+} | Format-List
+
+#!markdown
+
+### PS7+: ForEach-Object -Parellel
+
+- New in PowerShell v7 is the ability to run Foreach-Object in parallel. 
+- If scripts use runspaces consider using ForEach-Object -Parallel.
+
+#!markdown
+
+### Invoke-Command
+
+- When used against remote systems, Invoke-Command already operates in parallel.
+
+#!pwsh
+
+$ComputerNames = 'PC0001','PC0002','PC0003','PC0004','PC0005','PC0006'
+
+# Do this:
+
+Invoke-Command -ComputerName $ComputerNames -ScriptBlock {'Arbitrary code here.'}
+
+# Not this:
+
+Foreach($ComputerName in $ComputerNames){
+    Invoke-Command -ComputerName $ComputerName -ScriptBlock {'Arbitrary code here.'}
+}
+
+#!markdown
+
+## Arrays vs ArrayLists vs Generic Lists
+
+#!pwsh
+
+$PSArrayAddition = Measure-Command -Expression {
+    $Array = @()
+
+    ForEach($i in @(1..3E4)){
+        $Array += $i
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$ArrayList = Measure-Command -Expression {
+    $Array = [System.Collections.ArrayList]::new()
+
+    ForEach($i in @(1..3E4)){
+        [void]$Array.Add($i)
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$GenericListWithType = Measure-Command -Expression {
+    $Array = [System.Collections.Generic.List[int]]::new()
+
+    ForEach($i in @(1..3E4)){
+        $Array.Add($i)
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$GenericListWithoutType = Measure-Command -Expression {
+    $Array = [System.Collections.Generic.List[object]]::new()
+
+    ForEach($i in @(1..3E4)){
+        $Array.Add($i)
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$GenericListAddRange = Measure-Command -Expression {
+    $Array = [System.Collections.Generic.List[int]]::new()
+
+    $Array.AddRange([int[]](1..3E4))
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$Pipeline = Measure-Command -Expression {
+    $Array = ForEach($i in @(1..3E4)){
+        $i
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+Write-Output 'Results in milliseconds'
+
+[pscustomobject]@{
+    PSArrayAddition = $PSArrayAddition
+    ArrayList = $ArrayList
+    GenericListWithType = $GenericListWithType
+    GenericListWithoutType = $GenericListWithoutType
+    GenericListAddRange = $GenericListAddRange
+    Pipeline = $Pipeline
+} | Format-List
+
+#!markdown
+
+## HashTables For Fast Lookup
+
+#!pwsh
+
+$WhereFilter = Measure-Command -Expression {
+    $Array = [System.Collections.Generic.List[int]]::new()
+    $Array.AddRange([int[]](1..1E6))
+
+    $Array.Where({$_ -eq '4001'})
+}  | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$HashTableFilter = Measure-Command -Expression {
+    $Hashtable = @{}
+    
+    ForEach($i in @(1..1E6)){
+        [void]$Hashtable.Add($i,$i)
+    }
+
+    $Hashtable.4001
+}  | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+Write-Output 'Results in milliseconds'
+
+[pscustomobject]@{
+    WhereFilter = $WhereFilter
+    HashtableFilter = $HashTableFilter
+} | Format-List
