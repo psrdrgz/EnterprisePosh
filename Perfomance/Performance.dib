@@ -161,3 +161,132 @@ Write-Output 'Results in milliseconds'
     WhereFilter = $WhereFilter
     HashtableFilter = $HashTableFilter
 } | Format-List
+
+#!markdown
+
+## Return Only Necessary Data
+
+#!pwsh
+
+$FullMetadata = Measure-Command -Expression {
+    Get-CimInstance win32_service
+}  | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$SelectedMetadata = Measure-Command -Expression {
+    Get-CimInstance win32_service -Property Name
+}  | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+Write-Output 'Results in milliseconds'
+
+[pscustomobject]@{
+    FullMetadata = $FullMetadata
+    SelectedMetadata = $SelectedMetadata
+} | Format-List
+
+#!markdown
+
+## Reduce Network Calls
+
+#!pwsh
+
+$ComputerName = 'PC0001'
+
+# Don't do this:
+
+$Services = Invoke-Command -ComputerName $ComputerName -ScriptBlock {Get-Service}
+
+$Processes = Invoke-Command -ComputerName $ComputerName -ScriptBlock {Get-Process}
+
+$ComputerInfo = Invoke-Command -ComputerName $ComputerName -ScriptBlock {Get-ComputerInfo}
+
+[pscustomobject]@{
+    ComputerName = $ComputerName
+    Services = $Services
+    Processes = $Processes
+    ComputerInfo = $ComputerInfo
+}
+
+# Instead do this:
+
+Invoke-Command -ComputerName $ComputerName -ScriptBlock {
+    [pscustomobject]@{
+        Services = Get-Service
+        Processes = Get-Process
+        ComputerInfo = Get-ComputerInfo
+    }
+}
+
+#!markdown
+
+## Filter Left
+
+#!pwsh
+
+$FilterRight = Measure-Command -Expression {
+    Get-ChildItem -Path $env:windir | Where-Object {$_.Name -like '1*'}
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$FilterLeft = Measure-Command -Expression {
+    Get-ChildItem -Path $env:windir -Filter '1*'
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+[pscustomobject]@{
+    FilterRight = $FilterRight
+    FilterLeft = $FilterLeft
+} | Format-List
+
+#!markdown
+
+## Avoid ErrorAction SilentlyContinue
+
+#!pwsh
+
+$ErrorActionSilentlyContinue = Measure-Command -Expression {
+    Foreach($i in @(1..1E3)){
+        Remove-Item -Path $env:USERPROFILE\$Item -ErrorAction SilentlyContinue -Confirm:$False
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$CheckFirst = Measure-Command -Expression {
+    Foreach($i in @(1..1E3)){
+        If([System.IO.File]::Exists("$env:USERPROFILE\$Item")){
+            Remove-Item -Path $env:USERPROFILE\$Item -Confirm:$False
+        }
+    }
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+[pscustomobject]@{
+    ErrorActionSilentlyContinue = $ErrorActionSilentlyContinue
+    CheckFirst = $CheckFirst
+} | Format-List
+
+#!markdown
+
+## Consider Using .NET
+
+#!pwsh
+
+$NativePowerShell = Measure-Command -Expression {
+    $String = ''
+    
+    1..1E5 | Foreach{$String += 'Z'}
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+$DotNet = Measure-Command -Expression {
+    $String = [System.Text.StringBuilder]::new()
+    
+    1..1E5 | Foreach{[void]$String.Append('Z')}
+} | 
+Select-Object -ExpandProperty TotalMilliseconds
+
+[pscustomobject]@{
+    NativePowerShell = $NativePowerShell
+    DotNet = $DotNet
+} | Format-List
